@@ -193,8 +193,10 @@ function checkBossTimer(runtime) {
   // Floor Blast
   if (tm.hasFinished("bossFloorBlastTimer")) {
     // Move the indicator right below the player and start other timers
-    bossFB.x = playerCol.x;
-    bossFB.y = playerCol.y;
+    bossCol.x = playerCol.x + 20
+    bossCol.y = playerCol.y + 20
+    bossFB.x = bossCol.x;
+    bossFB.y = bossCol.y;
     tm.startTimer(0.4, "bossBackToIdleTimer", "once"); // Boss goes back to idle
     tm.startTimer(2, "bossFloorBlastExplosionTimer"); // Indicator explodes
     tm.startTimer(3, "bossAttackTimer", "once"); // Restart attack timer
