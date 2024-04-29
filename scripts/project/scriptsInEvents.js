@@ -18,7 +18,7 @@ const scriptsInEvents = {
 		
 	},
 
-	async Global_Event5_Act2(runtime, localVars)
+	async Global_Event1_Act2(runtime, localVars)
 	{
 		playerShieldIncrement()
 	},

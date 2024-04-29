@@ -83,6 +83,8 @@ let playerInvincible = false;
 let blinkingInterval;
 let playerHealth = PLAYERMAXHEALTH;
 let playerShield = 0;
+let playerTension = 0;
+let playerMaxPower = false;
 
 // runtime
 let runtimeGlobal;
@@ -145,6 +147,9 @@ async function onBeforeProjectStart(runtime) {
       bFBExp: runtime.objects.ExplodeEffectModel,
 
       lockdownMark: runtime.objects.lockdownMark,
+
+      lockdownUI: runtime.objects.lockdownUI,
+      fireAnimation: runtime.objects.fireBossProjectileAnimation,
     };
 
     // Set initial camera position (behind the player and looking at the boss)
@@ -180,6 +185,12 @@ function restartGame(runtime) {
 
   playerHealth = PLAYERMAXHEALTH;
   playerShield = 0;
+  playerTension = 0;
+  playerMaxPower = false;
+
+  const iceAura = runtime.objects.iceAura.getFirstInstance();
+  iceAura.x = 10000
+
 
   // Reset player
   playerModel.height = PLAYERMODELHEIGHT;
@@ -231,21 +242,43 @@ function onTick(runtime) {
   rotateBillboards(runtime);
   setCamera3D(runtime);
   updateUI(runtime);
+  checkPlayerMaxPower(runtime);
 }
 
 function playerShieldIncrement() {
   playerShield += 1;
+
   if (PLAYERSHIELDTIME <= playerShield) {
     playerShield = 0;
     playerHealth += 1;
 
-    Math.min(PLAYERMAXHEALTH, Math.max(0, playerHealth));
+    playerHealth = setMinMaxRange(0, PLAYERMAXHEALTH, playerHealth);
+  }
+}
+
+function playerTensionIncrement(inc) {
+  playerTension += inc;
+
+  playerTension = setMinMaxRange(0, 100, playerTension);
+
+  if (100 === playerTension) {
+    playerMaxPower = true;
+  }
+}
+
+function checkPlayerMaxPower(runtime) {
+  if (playerMaxPower) {
+    const iceAura = runtime.objects.iceAura.getFirstInstance();
+
+    iceAura.x = playerModel.x;
+    iceAura.y = playerModel.y;
   }
 }
 
 function updateUI(runtime) {
   runtime.callFunction("updateStatebar", playerHealth);
   runtime.callFunction("updateShield", playerShield);
+  runtime.callFunction("updateTension", playerTension);
 }
 
 function iceWatcherProcedure(runtime) {
@@ -254,6 +287,7 @@ function iceWatcherProcedure(runtime) {
   // bossProjectilesChainTripleShot(runtime);
   // bossRushFloorBlastAttack(runtime)
   // createBossMissleShot();
+  // bossHeal();
 
   const distanceNumber = dist2D(playerCol.x, playerCol.y, bossCol.x, bossCol.y);
 
@@ -290,8 +324,9 @@ function iceWatcherProcedure(runtime) {
       } else if (newAttack < 2) {
         bossProjectilesChainTripleShot(runtime);
       } else if (newAttack < 4) {
-        projectileTrap(runtime);
+        // projectileTrap(runtime);
         // Move to a random position on the arena and restart attack timer
+        bossRandomMove(runtime)
       } else {
         bossRandomMove(runtime);
       }
@@ -323,8 +358,9 @@ function iceWatcherProcedure(runtime) {
         bossRushFloorBlastAttack(runtime);
       } else if (newAttack < 2) {
         bossProjectilesChainTripleShot(runtime);
-      } else if (newAttack < 4) {
-        projectileTrap(runtime);
+      // } else if (newAttack < 4) {
+        // projectileTrap(runtime);
+        // bossHeal();
         // Move to a random position on the arena and restart attack timer
       } else if (newAttack < 5) {
         createBossProjectileChainingShot(runtime, 7);
@@ -375,7 +411,18 @@ function checkBossTimer(runtime) {
   }
 
   if (tm.hasFinished("bossHealTimer")) {
-    // todo heal later
+    const intervalSave = setInterval(() => {
+      // 회복
+      uiLifeBar.width += 10;
+      bossFlash();
+    }, 200);
+
+    setTimeout(() => {
+      // 회복기간
+      clearInterval(intervalSave);
+      tm.startTimer(0.4, "bossBackToIdleTimer", "once"); // Boss goes back to idle
+      tm.startTimer(2.5, "bossAttackTimer", "once"); // Restart attack timer
+    }, 1200);
   }
 
   if (tm.hasFinished("bossRushFloorBlastTimer")) {
@@ -667,6 +714,7 @@ function getInputs(runtime) {
 
       // play sound
       runtime.callFunction("playBoostSound");
+      playerTensionIncrement(5)
     }
 
     // Disable dash for now, then reset player movement and reset dash
@@ -711,9 +759,9 @@ function getInputs(runtime) {
       dist2D(playerCol.x, playerCol.y, bossCol.x, bossCol.y) <
       PLAYERATTACKDISTANCE
     ) {
-      // Boss flashes
-      bossModel.effects[0].setParameter(2, 2);
-      setTimeout(() => bossModel.effects[0].setParameter(2, 1), 50);
+      bossFlash();
+
+      playerTensionIncrement(10);
 
       // create slash effect
       const playerFrontX = playerCol.x + Math.cos(playerCol.angle) * 20;
@@ -747,6 +795,12 @@ function getInputs(runtime) {
       }
     }
   }
+}
+
+function bossFlash() {
+  // Boss flashes
+  bossModel.effects[0].setParameter(2, 2);
+  setTimeout(() => bossModel.effects[0].setParameter(2, 1), 50);
 }
 
 function playerDashState(runtime) {
@@ -877,6 +931,7 @@ function playerGotHit(runtime) {
   }
 
   runtime.callFunction("updateGotHitCount");
+  playerTensionIncrement(20);
 
   if (0 < playerHealth) {
     playerHealth -= 1;

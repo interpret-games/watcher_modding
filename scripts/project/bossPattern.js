@@ -102,7 +102,7 @@ function createBossMeleeShot() {
 
   // melee shot sequence
   createLockdownMark(300);
-  
+
   BossCollider.behaviors.Timer.startTimer(1, "bossMeleeShotTimer", "once");
 }
 
@@ -132,6 +132,10 @@ function projectileShot(runtime) {
   );
 }
 
+function playLockdownUI() {
+  texture.lockdownUI.getFirstInstance().startAnimation("beginning");
+}
+
 function createLockdownMark(time) {
   const playerCol = runtimeGlobal.objects.PlayerCollider.getFirstInstance();
 
@@ -146,7 +150,10 @@ function createLockdownMark(time) {
   }, time);
 }
 
-function bossHeal(runtime) {
+function bossHeal() {
+  const bossModel = runtimeGlobal.objects.BossModel.getFirstInstance();
+  const BossCollider = runtimeGlobal.objects.BossCollider.getFirstInstance();
+
   texture.bAttack.getFirstInstance().startAnimation("beginning");
   bossModel.setFaceObject("right", texture.bAttack);
 
@@ -189,7 +196,7 @@ function createBossProjectileChainingShot(runtime, times) {
   const nextTimes = times - 1;
   setTimeout(() => {
     createBossProjectileChainTripleShot(runtime);
-  }, 100);
+  }, 500);
   createBossProjectileChainingShot(runtime, nextTimes);
 }
 
@@ -257,6 +264,12 @@ function runBossProjectileShotCycle(runtime, projectile) {
     BOSSPROJSPEED;
 
   createLockdownMark(spd * 1000);
+  playLockdownUI()
+
+  texture.fireAnimation.getFirstInstance().startAnimation("beginning");
+  projectile.setFaceObject("right", texture.fireAnimation);
+  projectile.zHeight *= 2;
+  projectile.height *= 2;
 
   projectile.behaviors.Tween.startTween(
     "position",

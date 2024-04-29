@@ -4843,6 +4843,598 @@ onedit:v=>this._SetEnabled(v)}]}]}GetScriptInterfaceClass(){return self.IRotateB
 }
 
 {
+const C3 = self.C3;
+
+const BEHAVIOR_INFO = {
+    id: "mikal_rotate_shape",
+    Acts: {
+      "SetRotationAngles": {
+            "forward": (inst) => inst._SetRotationAngles,
+            
+            "autoScriptInterface": true,
+            },
+"SetRotationAnglesXY": {
+            "forward": (inst) => inst._SetRotationAnglesXY,
+            
+            "autoScriptInterface": true,
+            },
+"SetCenterOffset": {
+            "forward": (inst) => inst._SetCenterOffset,
+            
+            "autoScriptInterface": true,
+            },
+"SetScale": {
+            "forward": (inst) => inst._SetScale,
+            
+            "autoScriptInterface": true,
+            },
+"RotateTowardsPosition": {
+            "forward": (inst) => inst._RotateTowardsPosition,
+            
+            "autoScriptInterface": true,
+            },
+"EnableFragLight": {
+            "forward": (inst) => inst._EnableFragLight,
+            
+            "autoScriptInterface": true,
+            }
+    },
+    Cnds: {
+      
+    },
+    Exps: {
+      "AngleX": {
+            "forward": (inst) => inst._AngleX,
+            
+            "autoScriptInterface": true,
+          },
+"AngleY": {
+            "forward": (inst) => inst._AngleY,
+            
+            "autoScriptInterface": true,
+          },
+"AngleZ": {
+            "forward": (inst) => inst._AngleZ,
+            
+            "autoScriptInterface": true,
+          },
+"OffsetX": {
+            "forward": (inst) => inst._OffsetX,
+            
+            "autoScriptInterface": true,
+          },
+"OffsetY": {
+            "forward": (inst) => inst._OffsetY,
+            
+            "autoScriptInterface": true,
+          },
+"OffsetZ": {
+            "forward": (inst) => inst._OffsetZ,
+            
+            "autoScriptInterface": true,
+          },
+"ScaleX": {
+            "forward": (inst) => inst._ScaleX,
+            
+            "autoScriptInterface": true,
+          },
+"ScaleY": {
+            "forward": (inst) => inst._ScaleY,
+            
+            "autoScriptInterface": true,
+          },
+"ScaleZ": {
+            "forward": (inst) => inst._ScaleZ,
+            
+            "autoScriptInterface": true,
+          },
+"Quaternion": {
+            "forward": (inst) => inst._Quaternion,
+            
+            "autoScriptInterface": true,
+          }
+    },
+  };
+
+const camelCasedMap = new Map();
+
+function camelCasify(str) {
+  // If the string is already camelCased, return it
+  if (camelCasedMap.has(str)) {
+    return camelCasedMap.get(str);
+  }
+  // Replace any non-valid JavaScript identifier characters with spaces
+  let cleanedStr = str.replace(/[^a-zA-Z0-9$_]/g, " ");
+
+  // Split the string on spaces
+  let words = cleanedStr.split(" ").filter(Boolean);
+
+  // Capitalize the first letter of each word except for the first one
+  for (let i = 1; i < words.length; i++) {
+    words[i] = words[i].charAt(0).toUpperCase() + words[i].substring(1);
+  }
+
+  // Join the words back together
+  let result = words.join("");
+
+  // If the first character is a number, prepend an underscore
+  if (!isNaN(parseInt(result.charAt(0)))) {
+    result = "_" + result;
+  }
+
+  camelCasedMap.set(str, result);
+
+  return result;
+}
+
+C3.Behaviors[BEHAVIOR_INFO.id] = class extends C3.SDKBehaviorBase {
+  constructor(opts) {
+    super(opts);
+  }
+
+  Release() {
+    super.Release();
+  }
+};
+const B_C = C3.Behaviors[BEHAVIOR_INFO.id];
+B_C.Type = class extends C3.SDKBehaviorTypeBase {
+  constructor(objectClass) {
+    super(objectClass);
+  }
+
+  Release() {
+    super.Release();
+  }
+
+  OnCreate() {
+    console.log("OnCreate", this);
+  }
+};
+
+//====== SCRIPT INTERFACE ======
+const map = new WeakMap();
+
+function getScriptInterface(parentClass, map) {
+  return class extends parentClass {
+    constructor() {
+      super();
+      map.set(this, parentClass._GetInitInst().GetSdkInstance());
+    }
+  };
+}
+
+
+const scriptInterface = getScriptInterface(self.IBehaviorInstance, map);
+
+// extend script interface with plugin actions
+Object.keys(BEHAVIOR_INFO.Acts).forEach((key) => {
+  const ace = BEHAVIOR_INFO.Acts[key];
+  if (!ace.autoScriptInterface) return;
+  scriptInterface.prototype[camelCasify(key)] = function (...args) {
+    const sdkInst = map.get(this);
+    B_C.Acts[camelCasify(key)].call(sdkInst, ...args);
+  };
+});
+
+const addonTriggers = [];
+
+// extend script interface with plugin conditions
+Object.keys(BEHAVIOR_INFO.Cnds).forEach((key) => {
+  const ace = BEHAVIOR_INFO.Cnds[key];
+  if (!ace.autoScriptInterface || ace.isStatic || ace.isLooping) return;
+  if (ace.isTrigger) {
+    scriptInterface.prototype[camelCasify(key)] = function (callback, ...args) {
+      const callbackWrapper = () => {
+        const sdkInst = map.get(this);
+        if (B_C.Cnds[camelCasify(key)].call(sdkInst, ...args)) {
+          callback();
+        }
+      };
+      this.addEventListener(key, callbackWrapper, false);
+      return () => this.removeEventListener(key, callbackWrapper, false);
+    };
+  } else {
+    scriptInterface.prototype[camelCasify(key)] = function (...args) {
+      const sdkInst = map.get(this);
+      return B_C.Cnds[camelCasify(key)].call(sdkInst, ...args);
+    };
+  }
+});
+
+// extend script interface with plugin expressions
+Object.keys(BEHAVIOR_INFO.Exps).forEach((key) => {
+  const ace = BEHAVIOR_INFO.Exps[key];
+  if (!ace.autoScriptInterface) return;
+  scriptInterface.prototype[camelCasify(key)] = function (...args) {
+    const sdkInst = map.get(this);
+    return B_C.Exps[camelCasify(key)].call(sdkInst, ...args);
+  };
+});
+//====== SCRIPT INTERFACE ======
+
+//============ ACES ============
+B_C.Acts = {};
+B_C.Cnds = {};
+B_C.Exps = {};
+Object.keys(BEHAVIOR_INFO.Acts).forEach((key) => {
+  const ace = BEHAVIOR_INFO.Acts[key];
+  B_C.Acts[camelCasify(key)] = function (...args) {
+    if (ace.forward) ace.forward(this).call(this, ...args);
+    else if (ace.handler) ace.handler.call(this, ...args);
+  };
+});
+Object.keys(BEHAVIOR_INFO.Cnds).forEach((key) => {
+  const ace = BEHAVIOR_INFO.Cnds[key];
+  B_C.Cnds[camelCasify(key)] = function (...args) {
+    if (ace.forward) return ace.forward(this).call(this, ...args);
+    if (ace.handler) return ace.handler.call(this, ...args);
+  };
+  if (ace.isTrigger && ace.autoScriptInterface) {
+    addonTriggers.push({
+      method: B_C.Cnds[camelCasify(key)],
+      id: key,
+    });
+  }
+});
+Object.keys(BEHAVIOR_INFO.Exps).forEach((key) => {
+  const ace = BEHAVIOR_INFO.Exps[key];
+  B_C.Exps[camelCasify(key)] = function (...args) {
+    if (ace.forward) return ace.forward(this).call(this, ...args);
+    if (ace.handler) return ace.handler.call(this, ...args);
+  };
+});
+//============ ACES ============
+
+function getInstanceJs(parentClass, scriptInterface, addonTriggers, C3) {
+    return class extends parentClass {
+        constructor(inst, properties) {
+            super(inst);
+            if (properties) {
+                this._xAngle = properties[0];
+                this._yAngle = properties[1];
+                this._zAngle = properties[2];
+                this._xOffset = properties[3];
+                this._yOffset = properties[4];
+                this._zOffset = properties[5];
+                this._xScale = properties[6];
+                this._yScale = properties[7];
+                this._zScale = properties[8];
+            } else {
+                this._xAngle = 0;
+                this._yAngle = 0;
+                this._zAngle = 0;
+                this._xOffset = 0;
+                this._yOffset = 0;
+                this._zOffset = 0;
+                this._xScale = 1;
+                this._yScale = 1;
+                this._zScale = 1;
+            }
+
+            const angle = this._inst.GetWorldInfo().GetAngle();
+            if (angle != 0) {
+                this._zAngle = -angle * (180 / Math.PI);
+            }
+
+            const quat = globalThis.glMatrix.quat;
+            this._quaternion = quat.create();
+            this._useQuaternion = false;
+
+            // Monkey patch draw
+            this._inst._oldDraw = this._inst.Draw;
+            this._inst.Draw = function (renderer) {
+                const behInst = this.GetBehaviorInstanceFromCtor(
+                    C3.Behaviors.mikal_rotate_shape
+                );
+                const glMatrix = globalThis.glMatrix;
+                const mat4 = glMatrix.mat4;
+                const quat = glMatrix.quat;
+                const tmpModelView = mat4.create();
+                const modelRotate = mat4.create();
+                const wi = this.GetWorldInfo();
+                const tmpProjection = mat4.create();
+
+                if (behInst._sdkInst._fragLight)
+                    mat4.copy(tmpProjection, renderer._matP);
+
+                mat4.copy(tmpModelView, renderer._matMV);
+                // Get behavior instance data
+                const xAngle = behInst._sdkInst._xAngle;
+                const yAngle = behInst._sdkInst._yAngle;
+                const zAngle = behInst._sdkInst._zAngle;
+                const xOff = behInst._sdkInst._xOffset;
+                const yOff = behInst._sdkInst._yOffset;
+                const zOff = behInst._sdkInst._zOffset;
+                const xScale = behInst._sdkInst._xScale;
+                const yScale = behInst._sdkInst._yScale;
+                const zScale = behInst._sdkInst._zScale;
+
+                let rotate = quat.create();
+                if (behInst._sdkInst._useQuaternion) {
+                    quat.copy(rotate, behInst._sdkInst._quaternion);
+                } else {
+                    quat.fromEuler(rotate, xAngle, yAngle, zAngle);
+                }
+                const x = wi.GetX() + xOff;
+                const y = wi.GetY() + yOff;
+                const z = wi.GetZElevation() + zOff;
+                const width = wi.GetWidth();
+                const height = wi.GetHeight();
+                let zHeight = this._sdkInst._zHeight;
+                if (!zHeight) {
+                    zHeight = 0;
+                }
+
+                // mat4.fromRotationTranslationScale(modelRotate, rotate, [0,0,0], [1,1,1]);
+                if (behInst._sdkInst._useQuaternion) {
+                    const rotZ = quat.create();
+                    quat.fromEuler(rotZ, 0, 0, zAngle);
+                    quat.multiply(rotate, rotate, rotZ);
+                }
+
+                mat4.fromRotationTranslationScaleOrigin(
+                    modelRotate,
+                    rotate,
+                    [0, 0, 0],
+                    [xScale, yScale, zScale],
+                    [x, y, z + zHeight / 2]
+                );
+                if (behInst._sdkInst._fragLight)
+                    mat4.copy(behInst._sdkInst._modelRotate, modelRotate);
+                mat4.multiply(modelRotate, tmpModelView, modelRotate);
+                if (behInst._sdkInst._fragLight)
+                    mat4.multiply(modelRotate, renderer._matP, modelRotate);
+                renderer.SetModelViewMatrix(modelRotate);
+                if (behInst._sdkInst._fragLight) {
+                    const encodedModelRotate = mat4.clone(
+                        behInst._sdkInst._modelRotate
+                    );
+                    encodedModelRotate[3] = encodedModelRotate[12] + 11000000;
+                    renderer.SetProjectionMatrix(encodedModelRotate);
+                }
+
+                this._oldDraw(renderer);
+                renderer.SetModelViewMatrix(tmpModelView);
+                if (behInst._sdkInst._fragLight)
+                    renderer.SetProjectionMatrix(tmpProjection);
+            };
+
+            if (properties) {
+            }
+        }
+
+        Release() {
+            super.Release();
+            this._xAngle = null;
+            this._yAngle = null;
+            this._zAngle = null;
+            this._xOffset = null;
+            this._yOffset = null;
+            this._zOffset = null;
+            this._xScale = null;
+            this._yScale = null;
+            this._zScale = null;
+        }
+
+        SaveToJson() {
+            return {
+                // data to be saved for savegames
+            };
+        }
+
+        DrawRotate(renderer) {
+            // draw rotated
+            const behInst = this.GetBehaviorInstanceFromCtor(
+                C3.Behaviors.mikal_rotate_shape
+            );
+        }
+
+        LoadFromJson(o) {
+            // load state for savegames
+        }
+
+        Trigger(method) {
+            super.Trigger(method);
+            const addonTrigger = addonTriggers.find((x) => x.method === method);
+            if (addonTrigger) {
+                this.GetScriptInterface().dispatchEvent(
+                    new C3.Event(addonTrigger.id)
+                );
+            }
+        }
+
+        _SetRotationAngles(xAngle, yAngle, zAngle) {
+            this._xAngle = xAngle;
+            this._yAngle = yAngle;
+            this._zAngle = zAngle;
+            this._inst.GetRuntime().UpdateRender();
+        }
+
+        _SetRotationAnglesXY(xAngle, yAngle) {
+            this._xAngle = xAngle;
+            this._yAngle = yAngle;
+            this._inst.GetRuntime().UpdateRender();
+        }
+
+        _SetCenterOffset(x, y, z) {
+            this._xOffset = x;
+            this._yOffset = y;
+            this._zOffset = z;
+            this._inst.GetRuntime().UpdateRender();
+        }
+
+        _SetScale(x, y, z) {
+            this._xScale = x;
+            this._yScale = y;
+            this._zScale = z;
+            this._inst.GetRuntime().UpdateRender();
+        }
+
+        _EnableFragLight(enable) {
+            this._fragLight = enable;
+        }
+
+        _xOffset() {
+            return this._xOffset;
+        }
+
+        _yOffset() {
+            return this._yOffset;
+        }
+
+        _zOffset() {
+            return this._zOffset;
+        }
+
+        _AngleX() {
+            return this._xAngle;
+        }
+
+        _AngleY() {
+            return this._yAngle;
+        }
+
+        _AngleZ() {
+            return this._zAngle;
+        }
+
+        // expression x,y,z scale
+        _xScale() {
+            return this._xScale;
+        }
+        _yScale() {
+            return this._yScale;
+        }
+        _zScale() {
+            return this._zScale;
+        }
+
+        _Quaternion() {
+            if (this._useQuaternion) return JSON.stringify(this._quaternion);
+            return JSON.stringify([0, 0, 0, 1]);
+        }
+
+        _quaternionToEuler(quat) {
+            // XYZ
+            // Quaternion components
+            const q0 = quat[3];
+            const q1 = quat[0];
+            const q2 = quat[1];
+            const q3 = quat[2];
+
+            // Roll (z-axis rotation)
+            const sinr_cosp = 2 * (q0 * q3 + q1 * q2);
+            const cosr_cosp = 1 - 2 * (q2 * q2 + q3 * q3);
+            const roll = Math.atan2(sinr_cosp, cosr_cosp);
+
+            // Pitch (x-axis rotation)
+            const sinp = 2 * (q0 * q1 - q2 * q3);
+            let pitch;
+            if (Math.abs(sinp) >= 1) {
+                pitch = Math.copySign(Math.PI / 2, sinp); // Use 90 degrees if out of range
+            } else {
+                pitch = Math.asin(sinp);
+            }
+
+            // Yaw (y-axis rotation)
+            const siny_cosp = 2 * (q0 * q2 + q3 * q1);
+            const cosy_cosp = 1 - 2 * (q1 * q1 + q2 * q2);
+            const yaw = Math.atan2(siny_cosp, cosy_cosp);
+
+            return [pitch, yaw, roll]; // Returns Euler angles in radians
+        }
+
+        _RotateTowardsPosition(
+            x,
+            y,
+            z,
+            objXAngle,
+            objYAngle,
+            objZAngle,
+            upX,
+            upY,
+            upZ
+        ) {
+            const glMatrix = globalThis.glMatrix;
+            const mat4 = glMatrix.mat4;
+            const quat = glMatrix.quat;
+            const vec3 = glMatrix.vec3;
+            const target = vec3.fromValues(x, y, z);
+            const posX = this._inst.GetWorldInfo().GetX();
+            const posY = this._inst.GetWorldInfo().GetY();
+            const posZ = this._inst.GetWorldInfo().GetZElevation();
+            const pos = vec3.fromValues(posX, posY, posZ);
+            const targetMat = mat4.create();
+            const upVec = vec3.fromValues(upX, upY, upZ);
+            mat4.targetTo(targetMat, pos, target, upVec);
+            const targetQuat = quat.create();
+            mat4.getRotation(targetQuat, targetMat);
+            if (objYAngle != 0)
+                quat.rotateY(
+                    targetQuat,
+                    targetQuat,
+                    (objYAngle * Math.PI) / 180
+                );
+            if (objXAngle != 0)
+                quat.rotateX(
+                    targetQuat,
+                    targetQuat,
+                    (objXAngle * Math.PI) / 180
+                );
+            if (objZAngle != 0)
+                quat.rotateZ(
+                    targetQuat,
+                    targetQuat,
+                    (objZAngle * Math.PI) / 180
+                );
+            // normalize
+            quat.normalize(targetQuat, targetQuat);
+
+            // const rotation = quat.create();
+            // quat.rotationTo(rotation, base, targetQuat);
+
+            this._quaternion = targetQuat;
+            this._useQuaternion = true;
+            this._inst.GetRuntime().UpdateRender();
+        }
+
+        GetScriptInterfaceClass() {
+            return scriptInterface;
+        }
+    };
+}
+
+
+B_C.Instance = getInstanceJs(
+  C3.SDKBehaviorInstanceBase,
+  scriptInterface,
+  addonTriggers,
+  C3
+);
+
+}
+
+{
+
+}
+
+{
+
+}
+
+{
+
+}
+
+{
+
+}
+
+{
+
+}
+
+{
 'use strict';{const C3=self.C3;C3.Behaviors.Sin=class SinBehavior extends C3.SDKBehaviorBase{constructor(opts){super(opts)}Release(){super.Release()}}}{const C3=self.C3;C3.Behaviors.Sin.Type=class SinType extends C3.SDKBehaviorTypeBase{constructor(behaviorType){super(behaviorType)}Release(){super.Release()}OnCreate(){}}}
 {const C3=self.C3;const C3X=self.C3X;const IBehaviorInstance=self.IBehaviorInstance;const MOVEMENT=0;const WAVE=1;const PERIOD=2;const PERIOD_RANDOM=3;const PERIOD_OFFSET=4;const PERIOD_OFFSET_RANDOM=5;const MAGNITUDE=6;const MAGNITUDE_RANDOM=7;const ENABLE=8;const HORIZONTAL=0;const VERTICAL=1;const SIZE=2;const WIDTH=3;const HEIGHT=4;const ANGLE=5;const OPACITY=6;const VALUE=7;const FORWARDS_BACKWARDS=8;const ZELEVATION=9;const SINE=0;const TRIANGLE=1;const SAWTOOTH=2;const REVERSE_SAWTOOTH=3;const SQUARE=
 4;const _2pi=2*Math.PI;const _pi_2=Math.PI/2;const _3pi_2=3*Math.PI/2;const MOVEMENT_LOOKUP=[0,1,8,3,4,2,5,6,9,7];C3.Behaviors.Sin.Instance=class SinInstance extends C3.SDKBehaviorInstanceBase{constructor(behInst,properties){super(behInst);this._i=0;this._movement=0;this._wave=0;this._period=0;this._mag=0;this._isEnabled=true;this._basePeriod=0;this._basePeriodOffset=0;this._baseMag=0;this._periodRandom=0;this._periodOffsetRandom=0;this._magnitudeRandom=0;this._initialValue=0;this._initialValue2=
@@ -4882,21 +5474,13 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.Shape3D,
 		C3.Behaviors.Timer,
 		C3.Behaviors.Rotate,
+		C3.Behaviors.mikal_rotate_shape,
 		C3.Plugins.TiledBg,
 		C3.Behaviors.Sin,
 		C3.Plugins.Spritefont2,
 		C3.Plugins.Tilemap,
 		C3.Plugins.System.Cnds.IsGroupActive,
 		C3.Plugins.Keyboard.Cnds.IsKeyDown,
-		C3.Plugins.Shape3D.Cnds.CompareInstanceVar,
-		C3.Plugins.Shape3D.Acts.SetX,
-		C3.Plugins.Shape3D.Exps.X,
-		C3.Plugins.Shape3D.Exps.Angle,
-		C3.Plugins.Shape3D.Exps.dt,
-		C3.Plugins.Shape3D.Acts.SetY,
-		C3.Plugins.Shape3D.Exps.Y,
-		C3.Plugins.Shape3D.Acts.SetBoolInstanceVar,
-		C3.Plugins.Shape3D.Acts.SetFaceObject,
 		C3.Behaviors.Tween.Acts.TweenOneProperty,
 		C3.Plugins.System.Acts.SetBoolVar,
 		C3.Plugins.System.Cnds.OnLayoutStart,
@@ -4910,13 +5494,22 @@ self.C3_GetObjectRefTable = function () {
 		C3.Plugins.System.Cnds.EveryTick,
 		C3.Plugins.System.Cnds.CompareBoolVar,
 		C3.Plugins.Sprite.Acts.SetPos,
+		C3.Plugins.Shape3D.Exps.X,
+		C3.Plugins.Shape3D.Exps.Y,
 		C3.Plugins.System.Acts.CreateObject,
 		C3.Plugins.System.Acts.Wait,
 		C3.Plugins.Sprite.Acts.Destroy,
 		C3.ScriptsInEvents.EventSheet1_Event15_Act1,
+		C3.Plugins.Shape3D.Cnds.CompareInstanceVar,
+		C3.Plugins.Shape3D.Acts.SetX,
+		C3.Plugins.Shape3D.Exps.Angle,
+		C3.Plugins.Shape3D.Exps.dt,
+		C3.Plugins.Shape3D.Acts.SetY,
+		C3.Plugins.Shape3D.Acts.SetBoolInstanceVar,
+		C3.Plugins.Shape3D.Acts.SetFaceObject,
 		C3.ScriptsInEvents.EventSheet2_Event15_Act1,
 		C3.ScriptsInEvents.EventSheet2_Event16,
-		C3.ScriptsInEvents.Global_Event5_Act2,
+		C3.ScriptsInEvents.Global_Event1_Act2,
 		C3.Plugins.System.Acts.SetVar,
 		C3.Plugins.Mouse.Cnds.OnObjectClicked,
 		C3.Plugins.System.Acts.GoToLayout,
@@ -4937,6 +5530,9 @@ self.C3_JsPropNameTable = [
 	{buttonSprite2: 0},
 	{buttonSprite3: 0},
 	{hitCountText: 0},
+	{shieldBarGray: 0},
+	{UILifeBar: 0},
+	{shieldBar: 0},
 	{Timer: 0},
 	{BossCollider: 0},
 	{BossFBExpModel: 0},
@@ -4946,6 +5542,7 @@ self.C3_JsPropNameTable = [
 	{blastEffect: 0},
 	{BossAirBlast: 0},
 	{BossProjectileAnimation: 0},
+	{Rotate3D: 0},
 	{BossProjectile: 0},
 	{FireWarcherIdle: 0},
 	{FireWarcherAttack: 0},
@@ -4976,8 +5573,6 @@ self.C3_JsPropNameTable = [
 	{PlayerCollider: 0},
 	{Terrain: 0},
 	{TexBossFBExp: 0},
-	{UILifeBar: 0},
-	{UILifeBarSupport: 0},
 	{UITutorialText: 0},
 	{UILifeBarName: 0},
 	{UIFader: 0},
@@ -4991,13 +5586,9 @@ self.C3_JsPropNameTable = [
 	{iceShellEffect: 0},
 	{timeCountText: 0},
 	{BossFBExpModel2: 0},
-	{"3DShape": 0},
 	{BossAirBlast3: 0},
 	{iceAura: 0},
-	{"3DShape2": 0},
 	{slashEffect: 0},
-	{stage1Button: 0},
-	{stage2Button: 0},
 	{attackEffect: 0},
 	{playerEffectModel: 0},
 	{select_ui_text: 0},
@@ -5008,12 +5599,11 @@ self.C3_JsPropNameTable = [
 	{PlayerShade: 0},
 	{Tilemap: 0},
 	{ExplodeEffectModel: 0},
-	{Sprite: 0},
-	{shieldBar: 0},
-	{shieldBarGray: 0},
-	{Sprite2: 0},
-	{Sprite3: 0},
 	{lockdownMark: 0},
+	{tensionBarGray: 0},
+	{tensionBar: 0},
+	{fireBossProjectileAnimation: 0},
+	{lockdownUI: 0},
 	{started: 0},
 	{playSeconds: 0},
 	{units: 0},
@@ -5036,6 +5626,9 @@ self.InstanceType = {
 	buttonSprite2: class extends self.ISpriteInstance {},
 	buttonSprite3: class extends self.ISpriteInstance {},
 	hitCountText: class extends self.ITextInstance {},
+	shieldBarGray: class extends self.IWorldInstance {},
+	UILifeBar: class extends self.ISpriteInstance {},
+	shieldBar: class extends self.IWorldInstance {},
 	BossCollider: class extends self.I3DShapeInstance {},
 	BossFBExpModel: class extends self.I3DShapeInstance {},
 	BossFloorBlast: class extends self.ISpriteInstance {},
@@ -5065,8 +5658,6 @@ self.InstanceType = {
 	PlayerCollider: class extends self.I3DShapeInstance {},
 	Terrain: class extends self.I3DShapeInstance {},
 	TexBossFBExp: class extends self.ISpriteInstance {},
-	UILifeBar: class extends self.ISpriteInstance {},
-	UILifeBarSupport: class extends self.ISpriteInstance {},
 	UITutorialText: class extends self.ISpriteFontInstance {},
 	UILifeBarName: class extends self.ISpriteFontInstance {},
 	UIFader: class extends self.ISpriteInstance {},
@@ -5080,13 +5671,9 @@ self.InstanceType = {
 	iceShellEffect: class extends self.I3DShapeInstance {},
 	timeCountText: class extends self.ITextInstance {},
 	BossFBExpModel2: class extends self.I3DShapeInstance {},
-	_3DShape: class extends self.I3DShapeInstance {},
 	BossAirBlast3: class extends self.ISpriteInstance {},
 	iceAura: class extends self.ISpriteInstance {},
-	_3DShape2: class extends self.I3DShapeInstance {},
 	slashEffect: class extends self.I3DShapeInstance {},
-	stage1Button: class extends self.ISpriteInstance {},
-	stage2Button: class extends self.ISpriteInstance {},
 	attackEffect: class extends self.ISpriteInstance {},
 	playerEffectModel: class extends self.I3DShapeInstance {},
 	select_ui_text: class extends self.ITextInstance {},
@@ -5097,12 +5684,11 @@ self.InstanceType = {
 	PlayerShade: class extends self.ISpriteInstance {},
 	Tilemap: class extends self.ITilemapInstance {},
 	ExplodeEffectModel: class extends self.I3DShapeInstance {},
-	Sprite: class extends self.ISpriteInstance {},
-	shieldBar: class extends self.IWorldInstance {},
-	shieldBarGray: class extends self.IWorldInstance {},
-	Sprite2: class extends self.ISpriteInstance {},
-	Sprite3: class extends self.ISpriteInstance {},
-	lockdownMark: class extends self.ISpriteInstance {}
+	lockdownMark: class extends self.ISpriteInstance {},
+	tensionBarGray: class extends self.ISpriteInstance {},
+	tensionBar: class extends self.IWorldInstance {},
+	fireBossProjectileAnimation: class extends self.ISpriteInstance {},
+	lockdownUI: class extends self.ISpriteInstance {}
 }
 }
 
@@ -5204,21 +5790,6 @@ function or(l, r)
 
 self.C3_ExpressionFuncs = [
 		() => "control",
-		() => "N",
-		p => {
-			const n0 = p._GetNode(0);
-			const n1 = p._GetNode(1);
-			const n2 = p._GetNode(2);
-			const n3 = p._GetNode(3);
-			return () => (n0.ExpObject() + (((Math.cos(C3.toRadians(n1.ExpObject())) * n2.ExpInstVar()) * 60) * n3.ExpObject()));
-		},
-		p => {
-			const n0 = p._GetNode(0);
-			const n1 = p._GetNode(1);
-			const n2 = p._GetNode(2);
-			const n3 = p._GetNode(3);
-			return () => (n0.ExpObject() + (((Math.sin(C3.toRadians(n1.ExpObject())) * n2.ExpInstVar()) * 60) * n3.ExpObject()));
-		},
 		() => "",
 		() => 100,
 		() => 0.5,
@@ -5249,15 +5820,36 @@ self.C3_ExpressionFuncs = [
 		() => "bossRushFloorBlastTimer",
 		() => -10,
 		() => "control2",
+		() => "N",
+		p => {
+			const n0 = p._GetNode(0);
+			const n1 = p._GetNode(1);
+			const n2 = p._GetNode(2);
+			const n3 = p._GetNode(3);
+			return () => (n0.ExpObject() + (((Math.cos(C3.toRadians(n1.ExpObject())) * n2.ExpInstVar()) * 60) * n3.ExpObject()));
+		},
+		p => {
+			const n0 = p._GetNode(0);
+			const n1 = p._GetNode(1);
+			const n2 = p._GetNode(2);
+			const n3 = p._GetNode(3);
+			return () => (n0.ExpObject() + (((Math.sin(C3.toRadians(n1.ExpObject())) * n2.ExpInstVar()) * 60) * n3.ExpObject()));
+		},
 		() => "sound2",
 		() => "bossMeleeShotTimer",
 		() => "base2",
-		() => -30,
 		p => {
 			const v0 = p._GetNode(0).GetVar();
-			return () => ((v0.GetValue() / 62.5) + 4);
+			return () => ((v0.GetValue() / 71.4) + 4);
 		},
 		() => 0.2,
+		p => {
+			const v0 = p._GetNode(0).GetVar();
+			return () => ((v0.GetValue() / 7.14) + 4);
+		},
+		() => "sounds",
+		() => -30,
+		() => "statistics",
 		p => {
 			const v0 = p._GetNode(0).GetVar();
 			return () => (v0.GetValue() + 1);
